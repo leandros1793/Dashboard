@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LossRun AI — Workers' Comp Analytics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --border: rgba(0,0,0,0.09);
+    --border-md: rgba(0,0,0,0.14);
+    --text: #1a1a18;
+    --muted: #6b6b67;
+    --hint: #9b9b96;
+    --green: #1D9E75;
+    --green-light: #E1F5EE;
+    --green-dark: #0F6E56;
+    --amber: #EF9F27;
+    --amber-light: #FAEEDA;
+    --amber-dark: #854F0B;
+    --coral: #D85A30;
+    --coral-light: #FAECE7;
+    --coral-dark: #993C1D;
+    --blue: #378ADD;
+    --blue-light: #E6F1FB;
+    --gray: #888780;
+    --gray-light: #F1EFE8;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* LOGIN SCREEN */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+  }
+  .login-card {
+    background: var(--surface);
+    border: 0.5px solid var(--border-md);
+    border-radius: 14px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 380px;
+  }
+  .login-logo { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; }
+  .login-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); }
+  .login-brand { font-size: 16px; font-weight: 500; }
+  .login-card h2 { font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .login-card p { font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .field input {
+    width: 100%; padding: 9px 12px; border: 0.5px solid var(--border-md);
+    border-radius: var(--radius-sm); font-size: 14px; font-family: 'DM Sans', sans-serif;
+    background: var(--surface); color: var(--text); outline: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus { border-color: var(--green); }
+  .login-btn {
+    width: 100%; padding: 10px; background: var(--green); color: var(--green-light);
+    border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; margin-top: 6px;
+    transition: opacity 0.15s;
+  }
+  .login-btn:hover { opacity: 0.88; }
+  .login-footer { text-align: center; font-size: 12px; color: var(--hint); margin-top: 20px; }
+  .login-footer a { color: var(--green-dark); text-decoration: none; }
+
+  /* DASHBOARD */
+  #dashboard { display: none; }
+  .topbar {
+    background: var(--surface); border-bottom: 0.5px solid var(--border);
+    padding: 10px 24px; display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .logo { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 500; }
+  .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .nav { display: flex; gap: 2px; }
+  .nav-btn {
+    font-size: 12px; padding: 5px 12px; border-radius: var(--radius-sm);
+    border: 0.5px solid transparent; color: var(--muted); background: transparent;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s;
+  }
+  .nav-btn.active { background: var(--bg); color: var(--text); border-color: var(--border-md); font-weight: 500; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .ai-badge { font-size: 10px; padding: 3px 9px; border-radius: 4px; background: var(--green-light); color: var(--green-dark); font-weight: 500; }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 500; color: var(--green-light); }
+
+  .main { padding: 22px 24px; }
+
+  /* UPLOAD BANNER */
+  .upload-banner {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 20px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px;
+  }
+  .upload-info .label { font-size: 11px; color: var(--hint); margin-bottom: 3px; }
+  .upload-info .name { font-size: 15px; font-weight: 500; }
+  .upload-actions { display: flex; gap: 8px; }
+  .btn-outline {
+    font-size: 12px; padding: 7px 14px; border-radius: var(--radius-sm);
+    border: 0.5px solid var(--border-md); background: var(--surface);
+    color: var(--text); cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: background 0.12s;
+  }
+  .btn-outline:hover { background: var(--bg); }
+  .btn-green {
+    font-size: 12px; padding: 7px 14px; border-radius: var(--radius-sm);
+    border: none; background: var(--green); color: var(--green-light);
+    cursor: pointer; font-family: 'DM Sans', sans-serif; font-weight: 500;
+    transition: opacity 0.12s;
+  }
+  .btn-green:hover { opacity: 0.88; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 18px; }
+  .tab {
+    font-size: 12px; padding: 5px 14px; border-radius: var(--radius-sm);
+    border: 0.5px solid transparent; color: var(--muted); background: transparent;
+    cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s;
+  }
+  .tab.active { background: var(--surface); border-color: var(--border-md); color: var(--text); font-weight: 500; }
+
+  /* METRICS */
+  .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  .metric {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px;
+  }
+  .metric-label { font-size: 11px; color: var(--hint); margin-bottom: 8px; letter-spacing: 0.01em; }
+  .metric-value { font-size: 22px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); }
+  .metric-delta { font-size: 11px; margin-top: 5px; }
+  .up { color: var(--green-dark); }
+  .down { color: var(--coral-dark); }
+  .neutral { color: var(--hint); }
+
+  /* CHARTS ROW */
+  .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .card {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 18px;
+  }
+  .card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .card-title { font-size: 13px; font-weight: 500; }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .chart-wrap { position: relative; }
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+  .legend-sq { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* TABLE */
+  .claims-table { width: 100%; border-collapse: collapse; }
+  .claims-table th { font-size: 11px; color: var(--hint); font-weight: 400; text-align: left; padding: 5px 8px; border-bottom: 0.5px solid var(--border); }
+  .claims-table td { font-size: 12px; padding: 9px 8px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+  .claims-table tr:last-child td { border-bottom: none; }
+  .claims-table tr:hover td { background: var(--bg); }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+  .b-strain { background: var(--green-light); color: var(--green-dark); }
+  .b-slip { background: var(--amber-light); color: var(--amber-dark); }
+  .b-cut { background: var(--coral-light); color: var(--coral-dark); }
+  .b-other { background: var(--gray-light); color: #444441; }
+  .status-open { font-size: 11px; color: var(--green-dark); font-weight: 500; }
+  .status-closed { font-size: 11px; color: var(--hint); }
+  .mono { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
+  .sev { height: 4px; border-radius: 2px; }
+
+  /* PIE LAYOUT */
+  .pie-layout { display: flex; align-items: center; gap: 20px; }
+  .pie-legend { flex: 1; display: flex; flex-direction: column; gap: 9px; }
+  .pie-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .pie-row span:first-child { color: var(--muted); }
+  .pie-row span:last-child { font-weight: 500; }
+
+  /* AI INSIGHT CARD */
+  .insight-card {
+    background: var(--green-light); border: 0.5px solid rgba(29,158,117,0.2);
+    border-radius: var(--radius); padding: 14px 16px;
+    display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px;
+  }
+  .insight-icon { width: 20px; height: 20px; border-radius: 50%; background: var(--green); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .insight-icon svg { width: 10px; height: 10px; fill: none; stroke: #E1F5EE; stroke-width: 2; }
+  .insight-text { font-size: 12px; color: var(--green-dark); line-height: 1.6; }
+  .insight-text strong { font-weight: 500; }
+
+  @media (max-width: 700px) {
+    .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .charts-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-dot"></div>
+      <span class="login-brand">LossRun AI</span>
+    </div>
+    <h2>Sign in to your account</h2>
+    <p>Workers' compensation analytics for insurance professionals.</p>
+    <div class="field">
+      <label>Email address</label>
+      <input type="email" value="broker@meridian.com" placeholder="you@company.com">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" value="••••••••" placeholder="Your password">
+    </div>
+    <button class="login-btn" onclick="showDashboard()">Sign in</button>
+    <div class="login-footer"><a href="#">Forgot password?</a> &nbsp;·&nbsp; Don't have an account? <a href="#">Request access</a></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="logo"><div class="logo-dot"></div>LossRun AI</div>
+    <div class="nav">
+      <button class="nav-btn active">Dashboard</button>
+      <button class="nav-btn">Clients</button>
+      <button class="nav-btn">Reports</button>
+      <button class="nav-btn">Settings</button>
+    </div>
+    <div class="topbar-right">
+      <span class="ai-badge">AI Active</span>
+      <div class="user-avatar">PM</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="upload-banner">
+      <div class="upload-info">
+        <div class="label">Client account · Last analyzed 2 hours ago</div>
+        <div class="name">Meridian Construction Group — 2023 Loss Run</div>
+      </div>
+      <div class="upload-actions">
+        <button class="btn-outline">+ Upload new file</button>
+        <button class="btn-green">Export PDF Report</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active">Overview</button>
+      <button class="tab">Claims detail</button>
+      <button class="tab">AI insights</button>
+      <button class="tab">All clients</button>
+    </div>
+
+    <div class="metrics">
+      <div class="metric">
+        <div class="metric-label">Total incurred losses</div>
+        <div class="metric-value">$847,230</div>
+        <div class="metric-delta down">+12.4% vs prior year</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Total claims</div>
+        <div class="metric-value">142</div>
+        <div class="metric-delta down">+8 vs prior year</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Avg cost per claim</div>
+        <div class="metric-value">$5,966</div>
+        <div class="metric-delta up">-3.1% vs prior year</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Open claims</div>
+        <div class="metric-value">23</div>
+        <div class="metric-delta neutral">16% of total</div>
+      </div>
+    </div>
+
+    <!-- AI INSIGHT -->
+    <div class="insight-card">
+      <div class="insight-icon">
+        <svg viewBox="0 0 12 12"><path d="M6 1v5M6 9v1" stroke-linecap="round"/></svg>
+      </div>
+      <div class="insight-text">
+        <strong>AI finding:</strong> Strain/Sprain claims represent 41% of total count but only 28% of total cost — your high-severity exposure is concentrated in Slip/Fall events averaging $12,400 per claim. Consider targeted prevention programs for Q1–Q2 when frequency peaks.
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Claims by cause of injury</div>
+            <div class="card-sub">AI-classified — 142 claims</div>
+          </div>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-sq" style="background:#1D9E75"></span>Strain/Sprain</span>
+          <span class="legend-item"><span class="legend-sq" style="background:#EF9F27"></span>Slip/Fall</span>
+          <span class="legend-item"><span class="legend-sq" style="background:#D85A30"></span>Cut/Laceration</span>
+          <span class="legend-item"><span class="legend-sq" style="background:#378ADD"></span>Struck by object</span>
+          <span class="legend-item"><span class="legend-sq" style="background:#888780"></span>Other</span>
+        </div>
+        <div class="chart-wrap" style="height:210px;">
+          <canvas id="barChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <div class="card-title">Loss trend</div>
+            <div class="card-sub">Monthly incurred losses — 2023</div>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:235px;">
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-head"><div class="card-title">Distribution by category</div></div>
+        <div class="pie-layout">
+          <div class="chart-wrap" style="height:170px;width:170px;flex-shrink:0;">
+            <canvas id="pieChart"></canvas>
+          </div>
+          <div class="pie-legend">
+            <div class="pie-row"><span>Strain/Sprain</span><span style="color:#1D9E75">41%</span></div>
+            <div class="pie-row"><span>Slip/Fall</span><span style="color:#EF9F27">27%</span></div>
+            <div class="pie-row"><span>Cut/Laceration</span><span style="color:#D85A30">19%</span></div>
+            <div class="pie-row"><span>Struck by object</span><span style="color:#378ADD">8%</span></div>
+            <div class="pie-row"><span>Other</span><span style="color:#888780">5%</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">Recent claims — AI classified</div></div>
+        <table class="claims-table">
+          <thead>
+            <tr>
+              <th>Claim #</th>
+              <th>Category</th>
+              <th>Incurred</th>
+              <th>Severity</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">WC-2301</td>
+              <td><span class="badge b-strain">Strain/Sprain</span></td>
+              <td class="mono" style="color:#1a1a18">$12,400</td>
+              <td><div class="sev" style="width:55px;background:#1D9E75"></div></td>
+              <td class="status-closed">Closed</td>
+            </tr>
+            <tr>
+              <td class="mono">WC-2302</td>
+              <td><span class="badge b-slip">Slip/Fall</span></td>
+              <td class="mono" style="color:#1a1a18">$38,750</td>
+              <td><div class="sev" style="width:90px;background:#EF9F27"></div></td>
+              <td class="status-open">Open</td>
+            </tr>
+            <tr>
+              <td class="mono">WC-2303</td>
+              <td><span class="badge b-cut">Cut/Laceration</span></td>
+              <td class="mono" style="color:#1a1a18">$4,200</td>
+              <td><div class="sev" style="width:28px;background:#D85A30"></div></td>
+              <td class="status-closed">Closed</td>
+            </tr>
+            <tr>
+              <td class="mono">WC-2304</td>
+              <td><span class="badge b-strain">Strain/Sprain</span></td>
+              <td class="mono" style="color:#1a1a18">$9,100</td>
+              <td><div class="sev" style="width:42px;background:#1D9E75"></div></td>
+              <td class="status-closed">Closed</td>
+            </tr>
+            <tr>
+              <td class="mono">WC-2305</td>
+              <td><span class="badge b-other">Other</span></td>
+              <td class="mono" style="color:#1a1a18">$67,000</td>
+              <td><div class="sev" style="width:115px;background:#378ADD"></div></td>
+              <td class="status-open">Open</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showDashboard() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  initCharts();
+}
+
+function initCharts() {
+  const gridColor = 'rgba(0,0,0,0.06)';
+  const tickColor = 'rgba(0,0,0,0.35)';
+
+  new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: ['Strain/Sprain','Slip/Fall','Cut/Laceration','Struck by object','Overexertion','Other'],
+      datasets: [{
+        data: [58,38,27,12,4,3],
+        backgroundColor: ['#1D9E75','#EF9F27','#D85A30','#378ADD','#534AB7','#888780'],
+        borderRadius: 4, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { color: gridColor }, ticks: { color: tickColor, font: { size: 10, family: 'DM Sans' } } },
+        y: { grid: { display: false }, ticks: { color: tickColor, font: { size: 10, family: 'DM Sans' } } }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+      labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
+      datasets: [{
+        data: [48000,62000,55000,71000,43000,89000,76000,94000,58000,103000,67000,81000],
+        borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.07)',
+        fill: true, tension: 0.4, pointRadius: 3, pointBackgroundColor: '#1D9E75', borderWidth: 1.5
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: tickColor, font: { size: 10, family: 'DM Sans' } } },
+        y: {
+          grid: { color: gridColor },
+          ticks: { color: tickColor, font: { size: 10, family: 'DM Sans' }, callback: v => '$' + Math.round(v/1000) + 'k' }
+        }
+      }
+    }
+  });
+
+  new Chart(document.getElementById('pieChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Strain/Sprain','Slip/Fall','Cut/Laceration','Struck by object','Other'],
+      datasets: [{
+        data: [41,27,19,8,5],
+        backgroundColor: ['#1D9E75','#EF9F27','#D85A30','#378ADD','#888780'],
+        borderWidth: 0, hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+</script>
+</body>
+</html>
